@@ -22,6 +22,7 @@ class DecisionTransformer(TrajectoryModel):
             max_length=None,
             max_ep_len=4096,
             action_tanh=True,
+            jesnk_config=None,
             **kwargs
     ):
         super().__init__(state_dim, act_dim, max_length=max_length)
@@ -50,6 +51,8 @@ class DecisionTransformer(TrajectoryModel):
             *([nn.Linear(hidden_size, self.act_dim)] + ([nn.Tanh()] if action_tanh else []))
         )
         self.predict_return = torch.nn.Linear(hidden_size, 1)
+        if jesnk_config is not None :
+            self.jesnk_config = jesnk_config
 
     def forward(self, states, actions, rewards, returns_to_go, timesteps, attention_mask=None):
 
@@ -104,7 +107,16 @@ class DecisionTransformer(TrajectoryModel):
         # return_preds shape : 64, 20, 1
         return_preds = self.predict_return(x[:,2])  # predict next return given state and action
         state_preds = self.predict_state(x[:,2])    # predict next state given state and action
-        action_preds = self.predict_action(x[:,1])  # predict next action given state
+        
+        if self.jesnk_config is not None and 'action_embedding_test' in self.jesnk_config.keys() and self.jesnk_config['action_embedding_test'] :
+            action_preds = self.predict_action(x[:,2])  # predict next action given state and action
+        elif self.jesnk_config is not None and 'action_embedding_test_2' in self.jesnk_config.keys() and self.jesnk_config['action_embedding_test_2']:
+            action_preds = self.predict_action(x[:,2]) 
+        else :
+            action_preds = self.predict_action(x[:,1])  # predict next action given state
+
+        
+        
         # jesnk : this part does not make sense.
         return state_preds, action_preds, return_preds
 
@@ -142,7 +154,7 @@ class DecisionTransformer(TrajectoryModel):
         else:
             attention_mask = None
 
-        _, action_preds, return_preds = self.forward(
+        state_preds_, action_preds, return_preds = self.forward( 
             states, actions, None, returns_to_go, timesteps, attention_mask=attention_mask, **kwargs)
 
         return action_preds[0,-1]

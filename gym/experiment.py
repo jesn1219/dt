@@ -30,18 +30,34 @@ def experiment(
         exp_prefix,
         variant,
 ):
+    jesnk_config = variant.get('jesnk_config', False)
+    if jesnk_config :
+        # separate string into list of strings
+        jesnk_options = jesnk_config.split(',')
+        # make dictionary
+        jesnk_config = {}
+        for i in jesnk_options:
+            jesnk_config[i] = True
+        print('#'*20)
+        print(jesnk_config)
+        print('#'*20)
+
+        
     device = variant.get('device', 'cuda')
     log_to_wandb = variant.get('log_to_wandb', False)
 
     env_name, dataset = variant['env'], variant['dataset']
     model_type = variant['model_type']
-    group_name = f'{exp_prefix}-{env_name}-{dataset}'
+    group_name = f'{exp_prefix}-{env_name}-{dataset}' if jesnk_config is False else f'{exp_prefix}-{env_name}-{dataset}-{jesnk_options}'
     exp_prefix = f'{group_name}-{random.randint(int(1e5), int(1e6) - 1)}'
 
     if env_name == 'hopper':
         env = gym.make('Hopper-v3')
         max_ep_len = 1000
         env_targets = [3600, 1800]  # evaluation conditioning targets
+        if variant['jesnk_config'] is not None and 'target_3222' in variant['jesnk_config']:
+            env_targets = [3222]
+            print("JESNK: target_3222")
         scale = 1000.  # normalization for rewards/returns
     elif env_name == 'halfcheetah':
         env = gym.make('HalfCheetah-v3')
@@ -225,6 +241,7 @@ def experiment(
             n_positions=1024,
             resid_pdrop=variant['dropout'],
             attn_pdrop=variant['dropout'],
+            jesnk_config=jesnk_config,
         )
     elif model_type == 'bc':
         model = MLPBCModel(
@@ -276,8 +293,12 @@ def experiment(
             name=exp_prefix,
             group=group_name,
             project='decision-transformer',
-            config=variant
+            config=variant,
+            tags= jesnk_config if jesnk_config is not None else [],
         )
+              
+        
+        
         # wandb.watch(model)  # wandb has some bug
 
     for iter in range(variant['max_iters']):
@@ -308,6 +329,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--log_to_wandb', '-w', type=bool, default=False)
+    # below are for running on jesnk, can input multiple values for each argument
+    parser.add_argument('--jesnk_config', type=str, default='default') # jesnk
     
     args = parser.parse_args()
 
