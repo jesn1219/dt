@@ -137,6 +137,8 @@ def evaluate_episode_rtg(
         done = obs[2] # jesnk
         # jesnk : if state type is not numpy.ndarray, convert it to numpy.ndarray
         state = convert_to_serialized_array(state)
+        # convert np.float32 to torch.cuda.FloatTensor
+        reward = torch.tensor(reward,dtype=torch.float32)
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
         states = torch.cat([states, cur_state], dim=0)
