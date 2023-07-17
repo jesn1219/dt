@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 from decision_transformer.models.decision_transformer import DecisionTransformer
+from jesnk_utils.utils import convert_to_serialized_array
+
+
 
 def evaluate_episode(
         env,
@@ -22,6 +25,9 @@ def evaluate_episode(
     state_std = torch.from_numpy(state_std).to(device=device)
 
     state = env.reset()
+    
+    # if state type is not numpy.ndarray, convert it to numpy.ndarray
+    state = convert_to_serialized_array(state)
 
     # we keep all the histories on the device
     # note that the latest action and reward will be "padding"
@@ -47,7 +53,12 @@ def evaluate_episode(
         actions[-1] = action
         action = action.detach().cpu().numpy()
 
-        state, reward, done, _ = env.step(action)
+        #state, reward, done, _ = env.step(action) # jesnk : origin
+        obs = env.step(action) # jesnk
+        state = obs[0] # jesnk
+        reward = obs[1] # jesnk
+        done = obs[2] # jesnk
+        state = convert_to_serialized_array(state) # jesnk
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
         states = torch.cat([states, cur_state], dim=0)
@@ -83,6 +94,10 @@ def evaluate_episode_rtg(
     state_std = torch.from_numpy(state_std).to(device=device)
 
     state = env.reset()
+    
+    # if state type is not numpy.ndarray, convert it to numpy.ndarray
+    state = convert_to_serialized_array(state)
+    
     if mode == 'noise':
         state = state + np.random.normal(0, 0.1, size=state.shape)
 
@@ -115,7 +130,13 @@ def evaluate_episode_rtg(
         actions[-1] = action
         action = action.detach().cpu().numpy()
 
-        state, reward, done, _ = env.step(action)
+        #state, reward, done, _ = env.step(action)
+        obs = env.step(action) # jesnk
+        state = obs[0] # jesnk
+        reward = obs[1] # jesnk
+        done = obs[2] # jesnk
+        # jesnk : if state type is not numpy.ndarray, convert it to numpy.ndarray
+        state = convert_to_serialized_array(state)
 
         cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
         states = torch.cat([states, cur_state], dim=0)

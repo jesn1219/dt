@@ -14,6 +14,7 @@ from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
+
 # add path current directory to sys.path
 sys.path.append('.')
 
@@ -75,20 +76,44 @@ def experiment(
         max_ep_len = 100
         env_targets = [76, 40]
         scale = 10.
+    elif env_name == 'fetchreach-dense' :
+        from gym_robotics.envs.fetch.reach import MujocoPyFetchReachEnv
+        env = MujocoPyFetchReachEnv()
+        max_ep_len = 200
+        env_targets = [-1, -5]
+        scale = 1.
+        
     else:
         raise NotImplementedError
 
     if model_type == 'bc':
         env_targets = env_targets[:1]  # since BC ignores target, no need for different evaluations
 
-    state_dim = env.observation_space.shape[0]
+
+    # jesnk
+    from jesnk_utils.utils import convert_ordered_dict_to_array
+    state = env.reset()
+    state_dim = convert_ordered_dict_to_array(state[0]).shape[0]
+    print(state_dim)
+
+    #state_dim = env.observation_space.shape[0] # jesnk : origin
     act_dim = env.action_space.shape[0]
 
     # load dataset
     # get current file path
     import os
     cur_path = os.path.dirname(os.path.realpath(__file__))
-    dataset_path = f'{cur_path}/data/{env_name}-{dataset}-v2.pkl'
+    
+    #jesnk
+    if 'fetch' in env_name :
+        dataset_path = f'{cur_path}/jesnk_data/{env_name}-{dataset}.pkl'
+    else :
+        dataset_path = f'{cur_path}/data/{env_name}-{dataset}-v2.pkl'
+    
+    print('dataset_path: ', dataset_path)
+    
+        
+    
     with open(dataset_path, 'rb') as f:
         trajectories = pickle.load(f)
 
@@ -296,9 +321,7 @@ def experiment(
             config=variant,
             tags= jesnk_config if jesnk_config is not None else [],
         )
-              
-        
-        
+    
         # wandb.watch(model)  # wandb has some bug
 
     for iter in range(variant['max_iters']):
